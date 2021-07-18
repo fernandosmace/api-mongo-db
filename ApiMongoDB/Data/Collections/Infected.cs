@@ -1,13 +1,15 @@
-﻿using MongoDB.Driver.GeoJsonObjectModel;
+﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver.GeoJsonObjectModel;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace ApiMongoDB.Data.Collections
 {
     public class Infected
     {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public ObjectId Id { get; set; }
         public DateTime DataNascimento { get; set; }
         public string Sexo { get; set; }
         public GeoJson2DGeographicCoordinates Localizacao { get; set; }
