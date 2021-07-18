@@ -1,5 +1,6 @@
 ﻿using ApiMongoDB.Data.Collections;
 using ApiMongoDB.Model;
+using ApiMongoDB.Repository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
@@ -15,34 +16,17 @@ namespace ApiMongoDB.Controller
     [ApiController]
     public class InfectedController : ControllerBase
     {
+        private readonly IInfectedRepository _infectedRepository;
 
-        Data.MongoDB _mongoDB;
-
-        IMongoCollection<Infected> _infectedCollection;
-
-        public InfectedController(Data.MongoDB mongoDB)
+        public InfectedController(IInfectedRepository infectedRepository)
         {
-            _mongoDB = mongoDB;
-            _infectedCollection = _mongoDB.DB.GetCollection<Infected>(typeof(Infected).Name.ToLower());
-        }
-
-        [HttpPost]
-        public async Task<ActionResult> CreateInfected([FromBody] InfectedDTO infectedDTO) {
-
-            var infected = new Infected(infectedDTO.DataNascimento, infectedDTO.Sexo, infectedDTO.Latitude, infectedDTO.Longitude);
-
-            infected.Id = ObjectId.GenerateNewId();
-
-            await _infectedCollection.InsertOneAsync(infected);
-
-            return Ok("Criado com sucesso");
+            _infectedRepository = infectedRepository;
         }
 
         [HttpGet]
         public async Task<ActionResult> GetInfectedList()
         {
-            var result = await _infectedCollection.FindAsync(Builders<Infected>.Filter.Empty);
-            var infectedList = await result.ToListAsync();
+            var infectedList = await _infectedRepository.GetInfectedList();
 
             return Ok(infectedList);
         }
@@ -50,30 +34,66 @@ namespace ApiMongoDB.Controller
         [HttpGet("{idInfected}")]
         public async Task<ActionResult> GetInfected(string idInfected)
         {
+            var infectedVerification = await _infectedRepository.GetInfected(idInfected);
 
-            var infected = await _infectedCollection.Find(Builders<Infected>.Filter.Eq("Id", ObjectId.Parse(idInfected))).FirstOrDefaultAsync();
+            if (infectedVerification == null)
+            {
+                return NotFound("Infectado não encontrado");
+            }
+
+            var infected = infectedVerification;
 
             return Ok(infected);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> CreateInfected([FromBody] InfectedDTO infectedDTO)
+        {
+            var infected = await _infectedRepository.CreateInfected(infectedDTO);
+
+            var infectedOutput = new InfectedDTOOutput
+            {
+                Message = "Infectado criado com sucesso",
+                Infected = infected
+            };
+
+            return Ok(infectedOutput);
         }
 
         [HttpPut("{idInfected}")]
         public async Task<ActionResult> UpdateInfected(string idInfected, [FromBody] InfectedDTO infectedDTO)
         {
-            var infected = new Infected(infectedDTO.DataNascimento, infectedDTO.Sexo, infectedDTO.Latitude, infectedDTO.Longitude);
+            var infectedVerification = await _infectedRepository.GetInfected(idInfected);
 
-            await _infectedCollection.UpdateOneAsync(Builders<Infected>.Filter.Eq("Id", ObjectId.Parse(idInfected)), Builders<Infected>.Update.Set("dataNascimento", infected.DataNascimento));
-            await _infectedCollection.UpdateOneAsync(Builders<Infected>.Filter.Eq("Id", ObjectId.Parse(idInfected)), Builders<Infected>.Update.Set("sexo", infected.Sexo));
-            await _infectedCollection.UpdateOneAsync(Builders<Infected>.Filter.Eq("Id", ObjectId.Parse(idInfected)), Builders<Infected>.Update.Set("localizacao", infected.Localizacao));
-            
-            return Ok("Alterado com sucesso");
+            if (infectedVerification == null)
+            {
+                return NotFound("Infectado não encontrado");
+            }
+
+            var infected = await _infectedRepository.UpdateInfected(idInfected, infectedDTO);
+
+            var infectedOutput = new InfectedDTOOutput
+            {
+                Message = "Infectado atualizado com sucesso!",
+                Infected = infected
+            };
+
+            return Ok(infectedOutput);
         }
 
         [HttpDelete("{idInfected}")]
         public async Task<ActionResult> DeleteInfected(string idInfected)
         {
-            await _infectedCollection.DeleteOneAsync(Builders<Infected>.Filter.Eq("Id", ObjectId.Parse(idInfected)));
+            var infectedVerification = await _infectedRepository.GetInfected(idInfected);
 
-            return Ok("Infectado excluído com sucesso");
+            if (infectedVerification == null)
+            {
+                return NotFound("Infectado não encontrado");
+            }
+
+            await _infectedRepository.DeleteInfected(idInfected);
+
+            return Ok("Infectado excluído com sucesso!");
         }
     }
 }
